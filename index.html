@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>CentraFocus — Profit Percentage Calculator</title>
+<style>
+:root {
+  --accent-blue: #1e90ff;
+  --accent-red: #ff2d55;
+  --card-bg: rgba(8,10,18,0.6);
+  --card-border: rgba(255,255,255,0.06);
+}
+* { box-sizing: border-box; font-family: Inter, system-ui, Arial; margin: 0; }
+html,body { height:100%; overflow:hidden; }
+body {
+  background: url('assets/5162027.jpg') center/cover no-repeat fixed;
+  display:flex; align-items:center; justify-content:center;
+  color:white;
+}
+
+/* Tap overlay */
+#tapOverlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 3000; /* Topmost layer for clicks */
+}
+.tap-btn {
+  background: linear-gradient(90deg, var(--accent-red), #ff7b8f);
+  border: none; color: white; font-weight: 800;
+  padding: 16px 32px; border-radius: 999px;
+  cursor: pointer; font-size: 18px;
+  animation: pulse 1.6s infinite alternate;
+}
+@keyframes pulse { from{transform:scale(1);} to{transform:scale(1.05);} }
+.tap-sub { margin-top:10px; color:#ddd; font-size:13px; }
+
+/* Intro */
+#introWrap {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  z-index: 2000;
+}
+#introLogo {
+  width:130px; opacity:0; transform:translateY(-10px);
+  transition:opacity .5s, transform .6s;
+}
+#introText { display:flex; gap:6px; font-weight:900; font-size:36px; opacity:0; }
+
+/* Calculator card */
+.card {
+  width:100%; max-width:420px;
+  padding:28px; border-radius:16px;
+  background:var(--card-bg); border:1px solid var(--card-border);
+  backdrop-filter:blur(8px);
+  transform:scale(0.94); opacity:0;
+  transition:opacity 1.2s ease 0.25s, transform 1.2s cubic-bezier(.2,.9,.3,1) 0.25s;
+}
+.card.show { opacity:1; transform:scale(1); box-shadow:0 0 50px rgba(30,50,120,0.5); }
+.top { display:flex; align-items:center; justify-content:center; position:relative; margin-bottom:10px; }
+
+/* gear */
+#gear {
+  position:absolute; left:-60px; width:42px; height:42px;
+  display:flex; align-items:center; justify-content:center;
+  border-radius:10px; background:rgba(255,255,255,0.08);
+  cursor:pointer;
+}
+#gear svg { width:20px; height:20px; stroke:#fff; }
+
+h1 { font-size:18px; font-weight:800; color:#fff; }
+
+label {
+  display:block; margin-top:12px; font-weight:800; color:var(--accent-red);
+}
+input {
+  width:100%; padding:12px; margin-top:6px;
+  border-radius:8px; border:none; text-align:center;
+  font-size:15px;
+}
+.btn-primary {
+  margin-top:16px; width:100%; padding:12px; border-radius:10px;
+  border:none; cursor:pointer;
+  background:linear-gradient(90deg,var(--accent-blue),#007bff);
+  color:white; font-weight:800; font-size:15px;
+}
+.btn-save {
+  margin-top:10px; width:100%; padding:10px; border-radius:10px;
+  border:1px solid rgba(255,255,255,0.08);
+  background:transparent; color:white; font-weight:800; cursor:pointer;
+}
+#result { margin-top:14px; font-weight:800; color:#fff; min-height:22px; text-align:center; }
+
+footer { position:fixed; bottom:14px; left:0; right:0; text-align:center; color:rgba(255,255,255,0.85); font-size:13px; }
+
+/* Drawer */
+.drawer {
+  position:fixed; top:0; left:0; bottom:0; width:300px;
+  transform:translateX(-100%);
+  background:rgba(10,10,25,0.95); color:white;
+  padding:20px; z-index:2500;
+  transition:transform .3s ease;
+}
+.drawer.open { transform:translateX(0); box-shadow:0 0 40px rgba(30,50,120,0.6); }
+.drawer h3 { margin-bottom:12px; }
+.history { max-height:60vh; overflow:auto; background:rgba(255,255,255,0.05); padding:10px; border-radius:8px; }
+.hist-item { padding:8px 6px; border-bottom:1px solid rgba(255,255,255,0.05); font-size:14px; }
+.btn-clear {
+  margin-top:12px; background:#ff4d4d; border:none;
+  padding:10px; width:100%; border-radius:8px; color:white;
+  font-weight:800; cursor:pointer;
+}
+</style>
+</head>
+<body>
+
+<!-- Drawer -->
+<div id="drawer" class="drawer">
+  <h3>History</h3>
+  <div id="historyBox" class="history"></div>
+  <button id="clearAllBtn" class="btn-clear">Clear All</button>
+</div>
+
+<!-- Tap to start -->
+<div id="tapOverlay">
+  <button class="tap-btn" id="tapBtn">Tap to Start</button>
+  <div class="tap-sub">Tap to enable sound & start the intro</div>
+</div>
+
+<!-- Intro -->
+<div id="introWrap">
+  <img id="introLogo" src="assets/logo.png" alt="CentraFocus logo">
+  <div id="introText"></div>
+</div>
+
+<!-- Calculator -->
+<div class="card" id="card">
+  <div class="top">
+    <div id="gear" title="Settings">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7z" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06A2 2 0 0 1 2.3 16.9l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09c.7 0 1.27-.4 1.51-1a1.65 1.65 0 0 0-.33-1.82L4.3 3.3A2 2 0 0 1 7.13.47l.06.06a1.65 1.65 0 0 0 1.82.33c.46-.2.93-.3 1.4-.3H11a2 2 0 0 1 4 0h.09c.47 0 .94.1 1.4.3.7.3 1.3.98 1.3 1.8v.09c.45.2.82.57 1.02 1.02.2.46.3.93.3 1.4v.06c.03.48-.03.96-.18 1.42z" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <h1>Profit Percentage Calculator</h1>
+  </div>
+
+  <label for="amountInput">Amount</label>
+  <input id="amountInput" type="number" placeholder="Enter Total Amount">
+
+  <label for="profitInput">Profit</label>
+  <input id="profitInput" type="number" placeholder="Enter Profit Value">
+
+  <button id="calcBtn" class="btn-primary">Calculate</button>
+  <button id="saveBtn" class="btn-save">Save</button>
+
+  <div id="result"></div>
+</div>
+
+<footer>© 2025 CentraFocus</footer>
+
+<script>
+const tapOverlay=document.getElementById('tapOverlay');
+const tapBtn=document.getElementById('tapBtn');
+const introWrap=document.getElementById('introWrap');
+const introLogo=document.getElementById('introLogo');
+const introText=document.getElementById('introText');
+const card=document.getElementById('card');
+const audio=new Audio('assets/centrafocus.mp3');
+const TEXT='CENTRAFOCUS';
+TEXT.split('').forEach((ch,i)=>{
+  const span=document.createElement('span');
+  span.textContent=ch;
+  span.style.color=i<6?'#1e90ff':'#ff2d55';
+  span.style.opacity=0;
+  span.style.transform='translateY(12px)';
+  span.style.transition=`opacity .15s ease ${i*0.1}s, transform .4s ease ${i*0.1}s`;
+  introText.appendChild(span);
+});
+tapBtn.addEventListener('click',()=>{
+  tapOverlay.style.display='none';
+  audio.play().catch(()=>{});
+  introLogo.style.opacity=1;
+  introLogo.style.transform='translateY(0)';
+  introText.style.opacity=1;
+  [...introText.children].forEach((s,i)=>setTimeout(()=>{s.style.opacity=1;s.style.transform='translateY(0)'},i*100));
+  setTimeout(()=>{
+    introWrap.style.transition='opacity .6s';
+    introWrap.style.opacity=0;
+    setTimeout(()=>{introWrap.style.display='none';card.classList.add('show');},600);
+  },3000);
+});
+const amountInput=document.getElementById('amountInput');
+const profitInput=document.getElementById('profitInput');
+const result=document.getElementById('result');
+const calcBtn=document.getElementById('calcBtn');
+/* 🔊 Voice */
+function speakResult(percent){
+  const utter=new SpeechSynthesisUtterance(`Your profit percentage is ${percent} percent`);
+  utter.pitch=1; utter.rate=0.95; utter.volume=1;
+  utter.voice=speechSynthesis.getVoices().find(v=>v.name.toLowerCase().includes('male'))||speechSynthesis.getVoices()[0];
+  speechSynthesis.speak(utter);
+}
+calcBtn.addEventListener('click',()=>{
+  const a=parseFloat(amountInput.value),p=parseFloat(profitInput.value);
+  if(isNaN(a)||isNaN(p)||a<=0){result.textContent='Enter valid numbers.';result.style.color='#ff8080';return;}
+  const percent=((p/a)*100).toFixed(2);
+  result.textContent=`Profit Percentage: ${percent}%`;
+  result.style.color='#fff';
+  speakResult(percent);
+  return percent;
+});
+/* Save + History */
+const STORAGE_KEY='centrafocus_history_v2';
+function loadHistory(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]')}catch{return[]}}
+function saveHistory(arr){localStorage.setItem(STORAGE_KEY,JSON.stringify(arr))}
+function updateHistory(){
+  const h=loadHistory().reverse();
+  const box=document.getElementById('historyBox');
+  box.innerHTML='';
+  if(!h.length)return box.innerHTML='<div style="opacity:.7">No saved entries.</div>';
+  h.forEach(x=>{
+    const d=document.createElement('div');
+    d.className='hist-item';
+    d.innerHTML=`<b>${x.percent}%</b> • ${x.day}, ${x.month} ${x.date}<br><small>Amt ${x.amount} | Profit ${x.profit}</small>`;
+    box.appendChild(d);
+  });
+}
+document.getElementById('saveBtn').addEventListener('click',()=>{
+  const a=parseFloat(amountInput.value),p=parseFloat(profitInput.value);
+  if(isNaN(a)||isNaN(p)||a<=0)return alert('Enter valid numbers first.');
+  const percent=((p/a)*100).toFixed(2);
+  const d=new Date();
+  const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const entry={percent,amount:a,profit:p,day:days[d.getDay()],date:d.getDate(),month:months[d.getMonth()]};
+  const arr=loadHistory();
+  arr.push(entry);
+  saveHistory(arr);
+  updateHistory();
+  alert('Saved ✅');
+});
+document.getElementById('clearAllBtn').addEventListener('click',()=>{
+  if(confirm('Delete all entries?')){
+    localStorage.removeItem(STORAGE_KEY);
+    updateHistory();
+  }
+});
+updateHistory();
+/* Drawer */
+const drawer=document.getElementById('drawer');
+const gear=document.getElementById('gear');
+gear.addEventListener('click',()=>{
+  drawer.classList.toggle('open');
+  if(drawer.classList.contains('open'))updateHistory();
+});
+</script>
+</body>
+</html>
+
